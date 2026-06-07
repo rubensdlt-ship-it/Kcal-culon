@@ -2,7 +2,12 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { todayLocalDate, formatLongDate, formatShortDate } from '@/lib/date'
-import { formatInt } from '@/lib/format'
+import {
+  formatInt,
+  formatDecimal,
+  formatSignedKg,
+  formatSignedKcal,
+} from '@/lib/format'
 import { calculateBMR, type Gender } from '@/lib/calories'
 import { AppHeader } from '@/components/app-header'
 import { BalanceBadge } from '@/components/day/balance-badge'
@@ -59,13 +64,86 @@ export default async function DashboardPage() {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
 
+  // Weight history (most recent first) for the variation metrics.
+  const { data: weightHistory } = await supabase
+    .from('daily_logs')
+    .select('log_date, weight_kg')
+    .eq('user_id', user.id)
+    .not('weight_kg', 'is', null)
+    .order('log_date', { ascending: false })
+    .limit(90)
+
+  const weights = weightHistory ?? []
+
   // Quick stats.
-  const latestWeight =
-    recent[0]?.weight_kg ?? profile?.current_weight_kg ?? null
+  const latestLoggedWeight =
+    weights[0]?.weight_kg != null ? Number(weights[0].weight_kg) : null
+  const latestWeight = latestLoggedWeight ?? profile?.current_weight_kg ?? null
   const avgBalance =
     recent.length > 0
       ? recent.reduce((s, l) => s + (l.calorie_balance ?? 0), 0) / recent.length
       : null
+
+  // --- IMC (BMI) ---
+  const heightM = profile?.height_cm != null ? profile.height_cm / 100 : null
+  const imc =
+    latestWeight != null && heightM != null && heightM > 0
+      ? Number(latestWeight) / (heightM * heightM)
+      : null
+  const imcCategory =
+    imc == null
+      ? null
+      : imc < 18.5
+        ? 'Bajo peso'
+        : imc < 25
+          ? 'Normal'
+          : imc < 30
+            ? 'Sobrepeso'
+            : 'Obesidad'
+
+  // --- Weight variation over ~7 and ~30 days ---
+  const parseDay = (iso: string) => new Date(`${iso}T12:00:00Z`)
+  const daysApart = (a: Date, b: Date) =>
+    Math.round(Math.abs(a.getTime() - b.getTime()) / 86_400_000)
+  const isoMinusDays = (iso: string, n: number) => {
+    const d = parseDay(iso)
+    d.setUTCDate(d.getUTCDate() - n)
+    return d.toISOString().slice(0, 10)
+  }
+  // Weight logged closest to `targetIso`, within `tolerance` days.
+  const weightNear = (targetIso: string, tolerance: number): number | null => {
+    const target = parseDay(targetIso)
+    let best: number | null = null
+    let bestDiff = Infinity
+    for (const w of weights) {
+      if (w.weight_kg == null) continue
+      const diff = daysApart(parseDay(w.log_date), target)
+      if (diff < bestDiff) {
+        bestDiff = diff
+        best = Number(w.weight_kg)
+      }
+    }
+    return best != null && bestDiff <= tolerance ? best : null
+  }
+
+  const weekAgoWeight = weightNear(isoMinusDays(today, 7), 4)
+  const monthAgoWeight = weightNear(isoMinusDays(today, 30), 10)
+  const weekWeightDelta =
+    latestLoggedWeight != null && weekAgoWeight != null
+      ? latestLoggedWeight - weekAgoWeight
+      : null
+  const monthWeightDelta =
+    latestLoggedWeight != null && monthAgoWeight != null
+      ? latestLoggedWeight - monthAgoWeight
+      : null
+
+  // --- Accumulated calorie balance over the last 7 logged days ---
+  const accumulatedBalance =
+    recent.length > 0
+      ? recent.reduce((s, l) => s + (l.calorie_balance ?? 0), 0)
+      : null
+  const accumulatedFatKg =
+    accumulatedBalance != null ? accumulatedBalance / 7700 : null
 
   // BMR for today, using the most recent known weight.
   const canComputeBmr =
@@ -150,20 +228,49 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             label="Peso actual"
-            value={latestWeight != null ? `${formatInt(Number(latestWeight))} kg` : '—'}
-          />
-          <StatCard
-            label="Balance medio (7 días)"
             value={
-              avgBalance != null
-                ? `${avgBalance < 0 ? '−' : '+'}${formatInt(Math.abs(avgBalance))} kcal`
+              latestWeight != null
+                ? `${formatDecimal(Number(latestWeight))} kg`
                 : '—'
             }
           />
-          <StatCard label="Días registrados" value={formatInt(totalDays ?? 0)} />
+          <StatCard
+            label="IMC"
+            value={imc != null ? formatDecimal(imc) : '—'}
+            hint={imcCategory ?? undefined}
+          />
+          <StatCard
+            label="Días registrados"
+            value={formatInt(totalDays ?? 0)}
+          />
+          <StatCard
+            label="Variación de peso (última semana)"
+            value={weekWeightDelta != null ? formatSignedKg(weekWeightDelta) : '—'}
+          />
+          <StatCard
+            label="Variación de peso (último mes)"
+            value={monthWeightDelta != null ? formatSignedKg(monthWeightDelta) : '—'}
+          />
+          <StatCard
+            label="Balance medio (7 días)"
+            value={avgBalance != null ? formatSignedKcal(avgBalance) : '—'}
+          />
+          <StatCard
+            label="Balance acumulado (7 días)"
+            value={
+              accumulatedBalance != null
+                ? formatSignedKcal(accumulatedBalance)
+                : '—'
+            }
+            hint={
+              accumulatedFatKg != null
+                ? `≈ ${formatSignedKg(accumulatedFatKg)} grasa`
+                : undefined
+            }
+          />
         </div>
 
         {/* Últimos días */}
@@ -207,12 +314,21 @@ export default async function DashboardPage() {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: string
+  hint?: string
+}) {
   return (
     <Card>
       <CardContent className="py-4">
         <p className="text-sm text-muted-foreground">{label}</p>
         <p className="text-2xl font-bold">{value}</p>
+        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       </CardContent>
     </Card>
   )
