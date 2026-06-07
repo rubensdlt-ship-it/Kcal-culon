@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState, useTransition } from 'react'
+import { Sparkles, Loader2 } from 'lucide-react'
 import { saveDayLog, type SaveDayLogInput } from '@/app/day/actions'
 import {
   type Gender,
@@ -53,6 +54,9 @@ type MealRow = {
   foodName: string
   portionDescription: string
   calories: string
+  // Transient UI state for the AI estimator (not persisted).
+  estimating?: boolean
+  estimateError?: string | null
 }
 
 export type DayLogFormProps = {
@@ -176,6 +180,39 @@ export function DayLogForm({
     setMeals((prev) => prev.map((m) => (m.key === key ? { ...m, ...patch } : m)))
   const removeMeal = (key: number) =>
     setMeals((prev) => prev.filter((m) => m.key !== key))
+
+  // Estimate calories for a meal row via the server-side OpenAI route.
+  const estimateMealCalories = async (key: number) => {
+    const row = meals.find((m) => m.key === key)
+    if (!row || !row.foodName.trim()) return
+
+    updateMeal(key, { estimating: true, estimateError: null })
+    try {
+      const res = await fetch('/api/estimate-calories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          food_name: row.foodName,
+          portion: row.portionDescription,
+        }),
+      })
+      if (!res.ok) throw new Error('estimate failed')
+      const data: { calories?: unknown } = await res.json()
+      if (typeof data.calories !== 'number' || !Number.isFinite(data.calories)) {
+        throw new Error('bad response')
+      }
+      updateMeal(key, {
+        calories: String(Math.round(data.calories)),
+        estimating: false,
+        estimateError: null,
+      })
+    } catch {
+      updateMeal(key, {
+        estimating: false,
+        estimateError: 'No se pudo estimar, introdúcelo a mano',
+      })
+    }
+  }
 
   const mealSubtotal = (mealType: MealType) =>
     meals
@@ -362,7 +399,7 @@ export function DayLogForm({
                     {rows.map((m) => (
                       <div
                         key={m.key}
-                        className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_7rem_auto] sm:items-end"
+                        className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr] sm:items-end"
                       >
                         <div className="grid gap-1">
                           <Label htmlFor={`meal-name-${m.key}`}>Alimento</Label>
@@ -388,26 +425,49 @@ export function DayLogForm({
                             }
                           />
                         </div>
-                        <div className="grid gap-1">
+                        <div className="grid gap-1 sm:col-span-2">
                           <Label htmlFor={`meal-kcal-${m.key}`}>Calorías</Label>
-                          <Input
-                            id={`meal-kcal-${m.key}`}
-                            type="number"
-                            min={0}
-                            value={m.calories}
-                            onChange={(e) =>
-                              updateMeal(m.key, { calories: e.target.value })
-                            }
-                          />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              id={`meal-kcal-${m.key}`}
+                              type="number"
+                              min={0}
+                              value={m.calories}
+                              className="w-28"
+                              onChange={(e) =>
+                                updateMeal(m.key, { calories: e.target.value })
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => estimateMealCalories(m.key)}
+                              disabled={!m.foodName.trim() || m.estimating}
+                            >
+                              {m.estimating ? (
+                                <Loader2 className="animate-spin" />
+                              ) : (
+                                <Sparkles />
+                              )}
+                              Estimar kcal
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="ml-auto"
+                              onClick={() => removeMeal(m.key)}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                          {m.estimateError ? (
+                            <p className="text-xs text-red-600" role="alert">
+                              {m.estimateError}
+                            </p>
+                          ) : null}
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMeal(m.key)}
-                        >
-                          Eliminar
-                        </Button>
                       </div>
                     ))}
                     <Button
