@@ -58,12 +58,6 @@ export default async function DashboardPage() {
 
   const recent = recentLogs ?? []
 
-  // Total days logged.
-  const { count: totalDays } = await supabase
-    .from('daily_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-
   // Weight history (most recent first) for the variation metrics.
   const { data: weightHistory } = await supabase
     .from('daily_logs')
@@ -241,10 +235,6 @@ export default async function DashboardPage() {
             label="IMC"
             value={imc != null ? formatDecimal(imc) : '—'}
             hint={imcCategory ?? undefined}
-          />
-          <StatCard
-            label="Días registrados"
-            value={formatInt(totalDays ?? 0)}
           />
           <StatCard
             label="Variación de peso (última semana)"
