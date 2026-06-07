@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { type Gender, type Intensity, type MealType } from '@/lib/calories'
+import { AppHeader } from '@/components/app-header'
 import { DayLogForm } from '@/components/day/day-log-form'
 
 export default async function DayPage({
@@ -53,7 +54,9 @@ export default async function DayPage({
     .eq('daily_log_id', id)
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 p-4 py-8">
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-3xl flex-1 p-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Día {log.log_date}</h1>
         <p className="text-muted-foreground">Edita y guarda los cambios.</p>
@@ -86,6 +89,7 @@ export default async function DayPage({
           })),
         }}
       />
-    </main>
+      </main>
+    </>
   )
 }

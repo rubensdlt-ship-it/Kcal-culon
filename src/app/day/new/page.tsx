@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { todayLocalDate } from '@/lib/date'
 import { type Gender } from '@/lib/calories'
+import { AppHeader } from '@/components/app-header'
 import { DayLogForm } from '@/components/day/day-log-form'
 
 export default async function NewDayPage() {
@@ -51,12 +52,14 @@ export default async function NewDayPage() {
     lastLog?.weight_kg ?? profile.current_weight_kg ?? 0
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 p-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold">Registrar día de hoy</h1>
-        <p className="text-muted-foreground">{logDate}</p>
-      </header>
-      <DayLogForm
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-3xl flex-1 p-4 py-8">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold">Registrar día de hoy</h1>
+          <p className="text-muted-foreground">{logDate}</p>
+        </header>
+        <DayLogForm
         mode="new"
         logDate={logDate}
         profile={{
@@ -73,7 +76,8 @@ export default async function NewDayPage() {
           activities: [],
           meals: [],
         }}
-      />
-    </main>
+        />
+      </main>
+    </>
   )
 }
