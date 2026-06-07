@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { todayLocalDate } from '@/lib/date'
 import {
   type Intensity,
   type MealType,
@@ -11,6 +12,8 @@ import {
   calculateTDEE,
   calorieBalance,
 } from '@/lib/calories'
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export type ActivityInput = {
   activityName: string
@@ -60,9 +63,14 @@ export async function saveDayLog(input: SaveDayLogInput): Promise<DayLogState> {
     redirect('/login')
   }
 
+  // The date must be valid and never in the future.
+  if (!DATE_RE.test(input.logDate) || input.logDate > todayLocalDate()) {
+    return { error: 'La fecha no es válida. No puedes registrar días futuros.' }
+  }
+
   const weightKg = Number(input.weightKg)
   if (!Number.isFinite(weightKg) || weightKg <= 0) {
-    return { error: 'Introduce un peso válido para hoy.' }
+    return { error: 'Introduce un peso válido para ese día.' }
   }
 
   // Profile data needed for BMR.

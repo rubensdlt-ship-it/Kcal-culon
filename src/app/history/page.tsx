@@ -1,6 +1,8 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppHeader } from '@/components/app-header'
+import { Button } from '@/components/ui/button'
 import { HistoryTable, type HistoryRow } from '@/components/history/history-table'
 
 export default async function HistoryPage() {
@@ -28,11 +30,16 @@ export default async function HistoryPage() {
     <>
       <AppHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 p-4 py-8">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold">Historial</h1>
-          <p className="text-muted-foreground">
-            Todos tus días registrados, del más reciente al más antiguo.
-          </p>
+        <header className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Historial</h1>
+            <p className="text-muted-foreground">
+              Todos tus días registrados, del más reciente al más antiguo.
+            </p>
+          </div>
+          <Button render={<Link href="/day/new" />} variant="outline">
+            Registrar otro día
+          </Button>
         </header>
 
         {rows.length === 0 ? (

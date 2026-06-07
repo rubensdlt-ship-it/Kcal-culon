@@ -143,6 +143,12 @@ export default async function DashboardPage() {
           </Card>
         )}
 
+        <div className="mb-8">
+          <Button render={<Link href="/day/new" />} variant="outline">
+            Registrar otro día
+          </Button>
+        </div>
+
         {/* Quick stats */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <StatCard

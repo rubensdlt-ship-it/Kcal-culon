@@ -18,6 +18,9 @@ export function AppHeader() {
             <Link href="/history" className="text-muted-foreground hover:text-foreground">
               Historial
             </Link>
+            <Link href="/progreso" className="text-muted-foreground hover:text-foreground">
+              Progreso
+            </Link>
           </div>
         </div>
         <form action={signOut}>
