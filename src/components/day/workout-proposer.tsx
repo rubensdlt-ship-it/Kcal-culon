@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Dumbbell, Loader2 } from 'lucide-react'
+import { addRoutineToToday } from '@/app/day/actions'
 import { INTENSITY_LABELS, type Intensity } from '@/lib/calories'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -41,26 +42,46 @@ export function WorkoutProposer() {
 
   const [loading, setLoading] = useState(false)
   const [workout, setWorkout] = useState<string | null>(null)
+  const [totalMinutes, setTotalMinutes] = useState<number | null>(null)
+  const [totalCalories, setTotalCalories] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // Add-to-day state.
+  const [adding, setAdding] = useState(false)
+  const [added, setAdded] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
 
   const generate = async () => {
     setLoading(true)
     setError(null)
     setCopied(false)
+    setAdded(false)
+    setAddError(null)
     try {
       const res = await fetch('/api/propose-workout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intensity, place }),
       })
-      const data: { workout?: unknown; error?: unknown } = await res.json()
+      const data: {
+        workout?: unknown
+        totalMinutes?: unknown
+        totalCalories?: unknown
+        error?: unknown
+      } = await res.json()
       if (!res.ok || typeof data.workout !== 'string') {
         throw new Error(
           typeof data.error === 'string' ? data.error : 'request failed',
         )
       }
       setWorkout(data.workout)
+      setTotalMinutes(
+        typeof data.totalMinutes === 'number' ? data.totalMinutes : null,
+      )
+      setTotalCalories(
+        typeof data.totalCalories === 'number' ? data.totalCalories : null,
+      )
     } catch (e) {
       setError(
         e instanceof Error && e.message !== 'request failed'
@@ -69,6 +90,28 @@ export function WorkoutProposer() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  const addToDay = async () => {
+    if (totalMinutes == null || totalCalories == null) return
+    setAdding(true)
+    setAddError(null)
+    try {
+      const res = await addRoutineToToday({
+        intensity,
+        durationMinutes: totalMinutes,
+        calories: totalCalories,
+      })
+      if (res?.error) {
+        setAddError(res.error)
+      } else {
+        setAdded(true)
+      }
+    } catch {
+      setAddError('No se pudo añadir la actividad. Inténtalo de nuevo.')
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -199,7 +242,30 @@ export function WorkoutProposer() {
                 <Button type="button" variant="outline" size="sm" onClick={print}>
                   Imprimir
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addToDay}
+                  disabled={adding || added}
+                >
+                  {adding ? (
+                    <Loader2 className="animate-spin" />
+                  ) : null}
+                  {added ? 'Añadida ✓' : '+ Añadir actividad a mi día'}
+                </Button>
               </div>
+
+              {addError ? (
+                <p className="text-sm text-red-600" role="alert">
+                  {addError}
+                </p>
+              ) : null}
+              {added ? (
+                <p className="text-sm text-green-600" role="status">
+                  Rutina añadida a tu día de hoy.
+                </p>
+              ) : null}
 
               <p className="text-xs text-muted-foreground">
                 Esta rutina es orientativa y está generada por IA. No sustituye el

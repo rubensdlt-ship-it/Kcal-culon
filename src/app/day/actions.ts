@@ -42,6 +42,134 @@ export type SaveDayLogInput = {
 
 export type DayLogState = { error?: string }
 
+export type AddRoutineState = { error?: string; message?: string }
+
+/**
+ * Register an AI-proposed routine as a SINGLE activity on today's log, using its
+ * total duration and total calories. Unlike saveDayLog, this does not replace
+ * the day's other activities/meals — it appends one row and recomputes the
+ * affected aggregates (activity calories, TDEE, balance). Today's log is created
+ * if it doesn't exist yet.
+ */
+export async function addRoutineToToday(input: {
+  intensity: Intensity
+  durationMinutes: number
+  calories: number
+}): Promise<AddRoutineState> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const durationMinutes = Math.max(0, Math.round(Number(input.durationMinutes) || 0))
+  const calories = Math.max(0, Math.round(Number(input.calories) || 0))
+  const { intensity } = input
+  if (durationMinutes <= 0 || calories <= 0) {
+    return { error: 'La rutina no tiene datos válidos para registrar.' }
+  }
+
+  const today = todayLocalDate()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('age, height_cm, gender, current_weight_kg')
+    .eq('id', user.id)
+    .single()
+
+  const profileWeight =
+    profile?.current_weight_kg != null ? Number(profile.current_weight_kg) : null
+  const computeBmr = (weight: number | null): number | null =>
+    weight != null && profile?.height_cm != null && profile?.age != null
+      ? Math.round(
+          calculateBMR(weight, profile.height_cm, profile.age, profile.gender ?? 'other'),
+        )
+      : null
+
+  // Find or create today's log.
+  const { data: existingLog } = await supabase
+    .from('daily_logs')
+    .select('id, weight_kg, bmr_calories, total_calories_consumed')
+    .eq('user_id', user.id)
+    .eq('log_date', today)
+    .maybeSingle()
+
+  let logId: string
+  let bmr: number | null
+  let totalConsumed: number
+
+  if (existingLog) {
+    logId = existingLog.id
+    const weight =
+      existingLog.weight_kg != null ? Number(existingLog.weight_kg) : profileWeight
+    bmr = existingLog.bmr_calories ?? computeBmr(weight)
+    totalConsumed = existingLog.total_calories_consumed ?? 0
+  } else {
+    bmr = computeBmr(profileWeight)
+    totalConsumed = 0
+    const { data: created, error: createError } = await supabase
+      .from('daily_logs')
+      .upsert(
+        {
+          user_id: user.id,
+          log_date: today,
+          weight_kg: profileWeight,
+          bmr_calories: bmr,
+          total_calories_consumed: 0,
+        },
+        { onConflict: 'user_id,log_date' },
+      )
+      .select('id')
+      .single()
+    if (createError || !created) {
+      return { error: 'No se pudo registrar la actividad.' }
+    }
+    logId = created.id
+  }
+
+  // Append the routine as one activity.
+  const { error: insertError } = await supabase.from('activities').insert({
+    daily_log_id: logId,
+    activity_name: 'Rutina de entrenamiento (IA)',
+    duration_minutes: durationMinutes,
+    intensity,
+    calories_burned: calories,
+  })
+  if (insertError) {
+    return { error: 'No se pudo registrar la actividad.' }
+  }
+
+  // Recompute aggregates from all activities of the day.
+  const { data: allActivities } = await supabase
+    .from('activities')
+    .select('calories_burned')
+    .eq('daily_log_id', logId)
+  const activityCaloriesTotal = (allActivities ?? []).reduce(
+    (sum, a) => sum + (a.calories_burned ?? 0),
+    0,
+  )
+
+  const tdee = bmr != null ? Math.round(calculateTDEE(bmr, activityCaloriesTotal)) : null
+  const balance = tdee != null ? Math.round(calorieBalance(totalConsumed, tdee)) : null
+
+  await supabase
+    .from('daily_logs')
+    .update({
+      activity_calories: activityCaloriesTotal,
+      tdee_calories: tdee,
+      calorie_balance: balance,
+    })
+    .eq('id', logId)
+    .eq('user_id', user.id)
+
+  revalidatePath('/dashboard')
+  revalidatePath(`/day/${logId}`)
+  return { message: 'Rutina añadida a tu día de hoy.' }
+}
+
 /**
  * Create or update today's (or a given date's) daily log.
  *
