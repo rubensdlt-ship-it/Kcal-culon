@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { signOut } from '@/app/auth/actions'
+import { getAdminUser } from '@/lib/auth/admin'
 import { Button } from '@/components/ui/button'
 
 /** Top navigation bar for the authenticated app pages. */
-export function AppHeader() {
+export async function AppHeader() {
+  const isAdmin = (await getAdminUser()) !== null
+
   return (
     <header className="border-b">
       <nav className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 p-4">
@@ -21,6 +24,14 @@ export function AppHeader() {
             <Link href="/progreso" className="text-muted-foreground hover:text-foreground">
               Progreso
             </Link>
+            {isAdmin ? (
+              <Link
+                href="/admin/users"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Gestión de usuarios
+              </Link>
+            ) : null}
           </div>
         </div>
         <form action={signOut}>
