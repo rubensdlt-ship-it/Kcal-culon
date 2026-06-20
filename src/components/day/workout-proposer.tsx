@@ -22,6 +22,15 @@ const PLACE_LABELS: Record<Place, string> = {
   home: 'Casa',
 }
 
+// Keep in sync with the activity_name used in addRoutineToToday.
+const ROUTINE_ACTIVITY_NAME = 'Rutina de entrenamiento (IA)'
+
+type AddedActivity = {
+  activityName: string
+  durationMinutes: number
+  intensity: Intensity
+}
+
 /** Escape text for safe injection into the print window. */
 function escapeHtml(text: string): string {
   return text
@@ -35,7 +44,11 @@ function escapeHtml(text: string): string {
  * place. The result is shown as a readable text block with Copy / Share / Print
  * actions. Nothing is persisted — this never touches the activities table.
  */
-export function WorkoutProposer() {
+export function WorkoutProposer({
+  onActivityAdded,
+}: {
+  onActivityAdded?: (activity: AddedActivity) => void
+} = {}) {
   const [open, setOpen] = useState(false)
   const [intensity, setIntensity] = useState<Intensity>('moderate')
   const [place, setPlace] = useState<Place>('gym')
@@ -107,6 +120,11 @@ export function WorkoutProposer() {
         setAddError(res.error)
       } else {
         setAdded(true)
+        onActivityAdded?.({
+          activityName: ROUTINE_ACTIVITY_NAME,
+          durationMinutes: totalMinutes,
+          intensity,
+        })
       }
     } catch {
       setAddError('No se pudo añadir la actividad. Inténtalo de nuevo.')

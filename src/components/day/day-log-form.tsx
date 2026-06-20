@@ -374,7 +374,19 @@ export function DayLogForm({
             Calorías por actividad: {fmt(totalActivityCalories)} kcal
           </p>
 
-          <WorkoutProposer />
+          <WorkoutProposer
+            onActivityAdded={(a) =>
+              setActivities((prev) => [
+                ...prev,
+                {
+                  key: nextKey(),
+                  activityName: a.activityName,
+                  durationMinutes: String(a.durationMinutes),
+                  intensity: a.intensity,
+                },
+              ])
+            }
+          />
         </CardContent>
       </Card>
 
