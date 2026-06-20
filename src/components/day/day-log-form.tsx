@@ -14,6 +14,7 @@ import {
   calculateTDEE,
   calorieBalance,
 } from '@/lib/calories'
+import { WorkoutProposer } from '@/components/day/workout-proposer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -372,6 +373,8 @@ export function DayLogForm({
           <p className="text-sm font-medium">
             Calorías por actividad: {fmt(totalActivityCalories)} kcal
           </p>
+
+          <WorkoutProposer />
         </CardContent>
       </Card>
 
