@@ -1,7 +1,11 @@
 'use client'
 
 import { useActionState } from 'react'
-import { saveProfile, type ProfileState } from '@/app/profile/actions'
+import {
+  saveProfile,
+  updateProfile,
+  type ProfileState,
+} from '@/app/profile/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,17 +27,28 @@ import {
 
 const initialState: ProfileState = {}
 
-type Props = {
-  defaultFullName?: string
-  defaultTargetWeight?: number | null
+export type ProfileFormDefaults = {
+  fullName?: string
+  gender?: string
+  age?: number | null
+  heightCm?: number | null
+  currentWeightKg?: number | null
+  targetWeight?: number | null
+  jobType?: string
+  activityLevel?: string
+  goal?: string
+  healthConditions?: string
+  pathologies?: string
 }
 
-export function ProfileSetupForm({
-  defaultFullName = '',
-  defaultTargetWeight = null,
-}: Props) {
+type Props = {
+  mode?: 'setup' | 'edit'
+  defaults?: ProfileFormDefaults
+}
+
+export function ProfileSetupForm({ mode = 'setup', defaults = {} }: Props) {
   const [state, formAction, pending] = useActionState(
-    saveProfile,
+    mode === 'edit' ? updateProfile : saveProfile,
     initialState,
   )
 
@@ -52,13 +67,13 @@ export function ProfileSetupForm({
               id="full_name"
               name="full_name"
               type="text"
-              defaultValue={defaultFullName}
+              defaultValue={defaults.fullName ?? ''}
               required
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="gender">Sexo</Label>
-            <Select name="gender" required>
+            <Select name="gender" defaultValue={defaults.gender ?? undefined} required>
               <SelectTrigger id="gender" className="w-full">
                 <SelectValue placeholder="Selecciona…" />
               </SelectTrigger>
@@ -71,7 +86,15 @@ export function ProfileSetupForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="age">Edad</Label>
-            <Input id="age" name="age" type="number" min={1} max={120} required />
+            <Input
+              id="age"
+              name="age"
+              type="number"
+              min={1}
+              max={120}
+              defaultValue={defaults.age ?? ''}
+              required
+            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="height_cm">Altura (cm)</Label>
@@ -81,6 +104,7 @@ export function ProfileSetupForm({
               type="number"
               min={50}
               max={260}
+              defaultValue={defaults.heightCm ?? ''}
               required
             />
           </div>
@@ -93,6 +117,7 @@ export function ProfileSetupForm({
               step="0.1"
               min={20}
               max={400}
+              defaultValue={defaults.currentWeightKg ?? ''}
               required
             />
           </div>
@@ -105,7 +130,7 @@ export function ProfileSetupForm({
               step="0.1"
               min={20}
               max={400}
-              defaultValue={defaultTargetWeight ?? ''}
+              defaultValue={defaults.targetWeight ?? ''}
               placeholder="Opcional"
             />
           </div>
@@ -123,7 +148,7 @@ export function ProfileSetupForm({
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="job_type">Tipo de trabajo</Label>
-            <Select name="job_type" required>
+            <Select name="job_type" defaultValue={defaults.jobType ?? undefined} required>
               <SelectTrigger id="job_type" className="w-full">
                 <SelectValue placeholder="Selecciona…" />
               </SelectTrigger>
@@ -138,7 +163,11 @@ export function ProfileSetupForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="activity_level">Nivel de actividad física</Label>
-            <Select name="activity_level" required>
+            <Select
+              name="activity_level"
+              defaultValue={defaults.activityLevel ?? undefined}
+              required
+            >
               <SelectTrigger id="activity_level" className="w-full">
                 <SelectValue placeholder="Selecciona…" />
               </SelectTrigger>
@@ -152,7 +181,7 @@ export function ProfileSetupForm({
           </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="goal">Objetivo</Label>
-            <Select name="goal" required>
+            <Select name="goal" defaultValue={defaults.goal ?? undefined} required>
               <SelectTrigger id="goal" className="w-full">
                 <SelectValue placeholder="Selecciona…" />
               </SelectTrigger>
@@ -182,6 +211,7 @@ export function ProfileSetupForm({
               name="health_conditions"
               placeholder="Por ejemplo: lesión de rodilla, alergias…"
               rows={3}
+              defaultValue={defaults.healthConditions ?? ''}
             />
           </div>
           <div className="grid gap-2">
@@ -191,6 +221,7 @@ export function ProfileSetupForm({
               name="pathologies"
               placeholder="Por ejemplo: diabetes, hipertensión…"
               rows={3}
+              defaultValue={defaults.pathologies ?? ''}
             />
           </div>
         </CardContent>
@@ -201,9 +232,22 @@ export function ProfileSetupForm({
           {state.error}
         </p>
       ) : null}
+      {state.message ? (
+        <p className="text-sm text-green-600" role="status">
+          {state.message}
+        </p>
+      ) : null}
 
-      <Button type="submit" className="w-full sm:w-auto sm:justify-self-end" disabled={pending}>
-        {pending ? 'Guardando…' : 'Guardar y continuar'}
+      <Button
+        type="submit"
+        className="w-full sm:w-auto sm:justify-self-end"
+        disabled={pending}
+      >
+        {pending
+          ? 'Guardando…'
+          : mode === 'edit'
+            ? 'Guardar cambios'
+            : 'Guardar y continuar'}
       </Button>
     </form>
   )

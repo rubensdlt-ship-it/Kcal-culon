@@ -24,6 +24,9 @@ export async function AppHeader() {
             <Link href="/progreso" className="text-muted-foreground hover:text-foreground">
               Progreso
             </Link>
+            <Link href="/profile" className="text-muted-foreground hover:text-foreground">
+              Mi perfil
+            </Link>
             {isAdmin ? (
               <Link
                 href="/admin/users"

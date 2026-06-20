@@ -18,6 +18,12 @@ export default async function ProfileSetupPage() {
     .eq('id', user.id)
     .single()
 
+  // Prefill the name we captured at signup; the rest is filled in here.
+  const defaults = {
+    fullName: profile?.full_name ?? '',
+    targetWeight: profile?.target_weight ?? null,
+  }
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 p-4 py-8">
       <header className="mb-6">
@@ -26,10 +32,7 @@ export default async function ProfileSetupPage() {
           Necesitamos algunos datos para calcular tus calorías diarias.
         </p>
       </header>
-      <ProfileSetupForm
-        defaultFullName={profile?.full_name ?? ''}
-        defaultTargetWeight={profile?.target_weight ?? null}
-      />
+      <ProfileSetupForm mode="setup" defaults={defaults} />
     </main>
   )
 }
