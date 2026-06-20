@@ -10,6 +10,8 @@ import {
 } from '@/lib/format'
 import { calculateBMR, type Gender } from '@/lib/calories'
 import { AppHeader } from '@/components/app-header'
+import { OverviewChart } from '@/components/dashboard/overview-chart'
+import { type ProgressLog } from '@/components/progress/progress-view'
 import { BalanceBadge } from '@/components/day/balance-badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -47,6 +49,15 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .eq('log_date', today)
     .maybeSingle()
+
+  // Overview chart: same data source as the Progreso charts (ascending).
+  const { data: overviewLogs } = await supabase
+    .from('daily_logs')
+    .select(
+      'id, log_date, weight_kg, calorie_balance, total_calories_consumed, tdee_calories',
+    )
+    .eq('user_id', user.id)
+    .order('log_date', { ascending: true })
 
   // Last 7 logs for the cards + average balance.
   const { data: recentLogs } = await supabase
@@ -163,6 +174,9 @@ export default async function DashboardPage() {
             {formatLongDate(today)}
           </p>
         </header>
+
+        {/* Overview chart (last 30 days) */}
+        <OverviewChart logs={(overviewLogs ?? []) as ProgressLog[]} />
 
         {/* Today */}
         {todayLog ? (
