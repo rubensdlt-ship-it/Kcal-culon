@@ -25,9 +25,13 @@ const initialState: ProfileState = {}
 
 type Props = {
   defaultFullName?: string
+  defaultTargetWeight?: number | null
 }
 
-export function ProfileSetupForm({ defaultFullName = '' }: Props) {
+export function ProfileSetupForm({
+  defaultFullName = '',
+  defaultTargetWeight = null,
+}: Props) {
   const [state, formAction, pending] = useActionState(
     saveProfile,
     initialState,
@@ -90,6 +94,19 @@ export function ProfileSetupForm({ defaultFullName = '' }: Props) {
               min={20}
               max={400}
               required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="target_weight">Peso objetivo (kg)</Label>
+            <Input
+              id="target_weight"
+              name="target_weight"
+              type="number"
+              step="0.1"
+              min={20}
+              max={400}
+              defaultValue={defaultTargetWeight ?? ''}
+              placeholder="Opcional"
             />
           </div>
         </CardContent>

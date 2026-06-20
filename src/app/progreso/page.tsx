@@ -13,6 +13,12 @@ export default async function ProgresoPage() {
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('target_weight')
+    .eq('id', user.id)
+    .single()
+
   // RLS restricts this to the user's own logs. Ascending for the charts.
   const { data: logs } = await supabase
     .from('daily_logs')
@@ -32,7 +38,10 @@ export default async function ProgresoPage() {
             Tu evolución a lo largo del tiempo.
           </p>
         </header>
-        <ProgressView logs={(logs ?? []) as ProgressLog[]} />
+        <ProgressView
+          logs={(logs ?? []) as ProgressLog[]}
+          targetWeight={profile?.target_weight ?? null}
+        />
       </main>
     </>
   )

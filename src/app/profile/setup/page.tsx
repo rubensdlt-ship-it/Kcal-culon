@@ -14,7 +14,7 @@ export default async function ProfileSetupPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('full_name, target_weight')
     .eq('id', user.id)
     .single()
 
@@ -26,7 +26,10 @@ export default async function ProfileSetupPage() {
           Necesitamos algunos datos para calcular tus calorías diarias.
         </p>
       </header>
-      <ProfileSetupForm defaultFullName={profile?.full_name ?? ''} />
+      <ProfileSetupForm
+        defaultFullName={profile?.full_name ?? ''}
+        defaultTargetWeight={profile?.target_weight ?? null}
+      />
     </main>
   )
 }

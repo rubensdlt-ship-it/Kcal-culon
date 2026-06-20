@@ -43,6 +43,8 @@ export async function saveProfile(
   const age = parsePositiveNumber(formData.get('age'))
   const heightCm = parsePositiveNumber(formData.get('height_cm'))
   const currentWeightKg = parsePositiveNumber(formData.get('current_weight_kg'))
+  // Optional: null when left empty.
+  const targetWeightKg = parsePositiveNumber(formData.get('target_weight'))
   const healthConditions =
     String(formData.get('health_conditions') ?? '').trim() || null
   const pathologies =
@@ -69,6 +71,7 @@ export async function saveProfile(
       age: Math.round(age),
       height_cm: Math.round(heightCm),
       current_weight_kg: currentWeightKg,
+      target_weight: targetWeightKg,
       job_type: jobType,
       activity_level: activityLevel,
       goal,
